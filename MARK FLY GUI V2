@@ -1,4 +1,3 @@
--- [[ CUBNIT FLY - V23 NO-FREEZE & STEALTH START ]] --
 local plr = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -10,7 +9,6 @@ local currentFlySpeed = 50
 local moveVector = Vector3.new(0,0,0)
 local activeTouch = nil 
 
--- [[ CONFIGURAÇÕES DE ANIMAÇÃO (FREEZE REMOVIDO) ]] --
 local ANIMS = {
     IDLE = {id = 89068086839142, speed = 1, priority = Enum.AnimationPriority.Action4}, 
     WALK = {id = 137168637932487, speed = 1.5, priority = Enum.AnimationPriority.Action4}, 
@@ -22,12 +20,9 @@ Assets.Name = "Cubnit_Fly_v23_Final"
 Assets.ResetOnSpawn = false
 
 -- [SPWN] Atributos de identificação persistente
-Assets:SetAttribute("SPWN_ManagedScriptID", "CubnitFlyV23Script")
-Assets:SetAttribute("SPWN_ManagedScriptName", "Cubnit Fly V23")
-Assets:SetAttribute("SPWN_ManagedScriptCategory", "Cubnit Fly V23")
-
--- [[ BOTÃO MESTRE (ABRIR/FECHAR) ]] --
--- [SPWN] Renomeado para OpenToggleButton (o Manager atua nele)
+Assets:SetAttribute("SPWN_ManagedScriptID", "FlySpwanScript")
+Assets:SetAttribute("SPWN_ManagedScriptName", "FLY SPWAN")
+Assets:SetAttribute("SPWN_ManagedScriptCategory", "FLY SPWAN")
 local IconButton = Instance.new("ImageButton", Assets)
 IconButton.Name = "OpenToggleButton"
 IconButton.Size = UDim2.new(0, 60, 0, 60)
@@ -36,14 +31,12 @@ IconButton.BackgroundTransparency = 1
 IconButton.Image = "rbxassetid://122210340505146"
 IconButton.ZIndex = 100
 
--- [[ CONTAINER DOS BOTÕES DE VOO ]] --
 local ButtonFrame = Instance.new("Frame", Assets)
 ButtonFrame.Size = UDim2.new(0, 140, 0, 110)
 ButtonFrame.Position = UDim2.new(0.85, 0, 0.4, 0)
 ButtonFrame.BackgroundTransparency = 1
-ButtonFrame.Visible = false
+ButtonFrame.Visible = false -- Inicia invisível conforme solicitado
 
--- [[ ESTILIZAÇÃO (PRETO) ]] --
 local function styleButton(btn, text, pos)
     btn.Size = UDim2.new(0, 130, 0, 50)
     btn.Position = pos
@@ -65,7 +58,6 @@ BoostBtn.Visible = false
 local MainBtn = Instance.new("TextButton", ButtonFrame)
 styleButton(MainBtn, "FLY", UDim2.new(0, 0, 0, 55))
 
--- [[ SISTEMA DE ARRASTE (DRAGGABLE) ]] --
 local function makeDraggable(guiObj, targetFrame)
     local dragging, dragInput, dragStart, startPos
     guiObj.InputBegan:Connect(function(input)
@@ -89,7 +81,6 @@ end
 makeDraggable(MainBtn, ButtonFrame)
 makeDraggable(IconButton, IconButton)
 
--- [[ LÓGICA DO BOTÃO MESTRE (CLIQUE DUPLO E TOGGLE) ]] --
 local lastClick = 0
 IconButton.MouseButton1Click:Connect(function()
     local now = tick()
@@ -101,7 +92,6 @@ IconButton.MouseButton1Click:Connect(function()
     ButtonFrame.Visible = not ButtonFrame.Visible
 end)
 
--- [[ ANALÓGICO INVISÍVEL ]] --
 local AnalogBase = Instance.new("Frame", Assets)
 AnalogBase.Size = UDim2.new(0, 220, 0, 220)
 AnalogBase.Position = UDim2.new(0.05, 0, 0.58, 0)
@@ -131,7 +121,6 @@ UIS.InputEnded:Connect(function(input)
     if input == activeTouch then activeTouch = nil; moveVector = Vector3.new(0, 0, 0) end
 end)
 
--- [[ SISTEMA DE ANIMAÇÃO (SEM LÓGICA DE FREEZE) ]] --
 local currentTrack = nil
 local lastAnimId = nil
 
@@ -155,7 +144,6 @@ local function PlayUniversalAnim(animData)
     end
 end
 
--- [[ LÓGICA DE VOO ]] --
 local function StartFly()
     local char = plr.Character
     if not char then return end
@@ -214,7 +202,6 @@ local function StartFly()
     end)
 end
 
--- [[ CONTROLES ]] --
 MainBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
@@ -235,26 +222,17 @@ plr.CharacterAdded:Connect(function()
     flying = false; MainBtn.Text = "FLY"; AnalogBase.Visible = false
 end)
 
---------------------------------------------------
--- [SPWN] ADAPTADOR PERSISTENTE
---------------------------------------------------
 task.spawn(function()
-    local scriptId = "CubnitFlyV23Script"
+    local scriptId = "FlySpwanScript"
     local scriptConfig = {
-        Name = "Cubnit Fly V23",
-        Category = "Cubnit Fly V23",
+        Name = "FLY SPWAN",
+        Category = "FLY SPWAN",
         GuiObject = Assets,
         OnDestroy = function()
-            -- [SPWN] CRÍTICO: cleanup completo do voo.
-            -- Sem isso, o player fica:
-            --   - Voando para sempre (BodyVelocity órfão)
-            --   - Girando sozinho (BodyGyro órfão)
-            --   - Deitado/flutuando (PlatformStand = true)
-            --   - Câmera deslocada 2.5 studs (CameraOffset)
-            --   - FOV travado em 100 se estava no MAX
-            --   - Animação travada tocando
+            
             flying = false
             boostLevel = 0
+            currentFlySpeed = 50
             moveVector = Vector3.new(0, 0, 0)
             activeTouch = nil
 
@@ -262,6 +240,7 @@ task.spawn(function()
             if char then
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if hrp then
+                    -- Remove BodyGyro e BodyVelocity órfãos
                     for _, obj in ipairs(hrp:GetChildren()) do
                         if obj:IsA("BodyGyro") or obj:IsA("BodyVelocity") then
                             pcall(function() obj:Destroy() end)
@@ -272,17 +251,18 @@ task.spawn(function()
                 local hum = char:FindFirstChild("Humanoid")
                 if hum then
                     pcall(function()
+                        hum.CameraOffset = Vector3.new(0, 0, 0)
                         hum.PlatformStand = false
                         hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-                        hum.CameraOffset = Vector3.new(0, 0, 0)
                     end)
                 end
             end
 
+            -- Restaura FOV da câmera
             local camera = workspace.CurrentCamera
             if camera then
                 pcall(function()
-                    TweenService:Create(camera, TweenInfo.new(0.5), {FieldOfView = 70}):Play()
+                    TweenService:Create(camera, TweenInfo.new(0.3), {FieldOfView = 70}):Play()
                 end)
             end
 
@@ -296,7 +276,6 @@ task.spawn(function()
         end
     }
 
-    -- Garante a persistência global na memória
     _G.ScriptManagerQueue = _G.ScriptManagerQueue or {}
     _G.RegisteredScriptDatabase = _G.RegisteredScriptDatabase or {}
 
