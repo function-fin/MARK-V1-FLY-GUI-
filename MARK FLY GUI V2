@@ -21,9 +21,15 @@ local Assets = Instance.new("ScreenGui", plr.PlayerGui)
 Assets.Name = "Cubnit_Fly_v23_Final"
 Assets.ResetOnSpawn = false
 
+-- [SPWN] Atributos de identificação persistente
+Assets:SetAttribute("SPWN_ManagedScriptID", "CubnitFlyV23Script")
+Assets:SetAttribute("SPWN_ManagedScriptName", "Cubnit Fly V23")
+Assets:SetAttribute("SPWN_ManagedScriptCategory", "Cubnit Fly V23")
+
 -- [[ BOTÃO MESTRE (ABRIR/FECHAR) ]] --
+-- [SPWN] Renomeado para OpenToggleButton (o Manager atua nele)
 local IconButton = Instance.new("ImageButton", Assets)
-IconButton.Name = "MasterToggle"
+IconButton.Name = "OpenToggleButton"
 IconButton.Size = UDim2.new(0, 60, 0, 60)
 IconButton.Position = UDim2.new(0.02, 0, 0.4, 0)
 IconButton.BackgroundTransparency = 1
@@ -35,7 +41,7 @@ local ButtonFrame = Instance.new("Frame", Assets)
 ButtonFrame.Size = UDim2.new(0, 140, 0, 110)
 ButtonFrame.Position = UDim2.new(0.85, 0, 0.4, 0)
 ButtonFrame.BackgroundTransparency = 1
-ButtonFrame.Visible = false -- Inicia invisível conforme solicitado
+ButtonFrame.Visible = false
 
 -- [[ ESTILIZAÇÃO (PRETO) ]] --
 local function styleButton(btn, text, pos)
@@ -227,4 +233,97 @@ end)
 
 plr.CharacterAdded:Connect(function()
     flying = false; MainBtn.Text = "FLY"; AnalogBase.Visible = false
+end)
+
+--------------------------------------------------
+-- [SPWN] ADAPTADOR PERSISTENTE
+--------------------------------------------------
+task.spawn(function()
+    local scriptId = "CubnitFlyV23Script"
+    local scriptConfig = {
+        Name = "Cubnit Fly V23",
+        Category = "Cubnit Fly V23",
+        GuiObject = Assets,
+        OnDestroy = function()
+            -- [SPWN] CRÍTICO: cleanup completo do voo.
+            -- Sem isso, o player fica:
+            --   - Voando para sempre (BodyVelocity órfão)
+            --   - Girando sozinho (BodyGyro órfão)
+            --   - Deitado/flutuando (PlatformStand = true)
+            --   - Câmera deslocada 2.5 studs (CameraOffset)
+            --   - FOV travado em 100 se estava no MAX
+            --   - Animação travada tocando
+            flying = false
+            boostLevel = 0
+            moveVector = Vector3.new(0, 0, 0)
+            activeTouch = nil
+
+            local char = plr.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    for _, obj in ipairs(hrp:GetChildren()) do
+                        if obj:IsA("BodyGyro") or obj:IsA("BodyVelocity") then
+                            pcall(function() obj:Destroy() end)
+                        end
+                    end
+                end
+
+                local hum = char:FindFirstChild("Humanoid")
+                if hum then
+                    pcall(function()
+                        hum.PlatformStand = false
+                        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+                        hum.CameraOffset = Vector3.new(0, 0, 0)
+                    end)
+                end
+            end
+
+            local camera = workspace.CurrentCamera
+            if camera then
+                pcall(function()
+                    TweenService:Create(camera, TweenInfo.new(0.5), {FieldOfView = 70}):Play()
+                end)
+            end
+
+            if currentTrack then
+                pcall(function() currentTrack:Stop(0.5) end)
+                currentTrack = nil
+            end
+            lastAnimId = nil
+
+            pcall(function() Assets:Destroy() end)
+        end
+    }
+
+    -- Garante a persistência global na memória
+    _G.ScriptManagerQueue = _G.ScriptManagerQueue or {}
+    _G.RegisteredScriptDatabase = _G.RegisteredScriptDatabase or {}
+
+    -- [SPWN] Lê visibilidade persistida em vez de hardcoded true
+    local persistedVis = Assets:GetAttribute("SPWN_ManagedVisibility")
+
+    _G.RegisteredScriptDatabase[scriptId] = {
+        Name = scriptConfig.Name,
+        Category = scriptConfig.Category,
+        GuiObject = scriptConfig.GuiObject,
+        IsVisible = (persistedVis == nil) and true or persistedVis,
+        OnDestroy = scriptConfig.OnDestroy
+    }
+
+    local exists = false
+    for _, item in ipairs(_G.ScriptManagerQueue) do
+        if item.id == scriptId then
+            exists = true
+            item.config = scriptConfig
+            break
+        end
+    end
+    if not exists then
+        table.insert(_G.ScriptManagerQueue, {id = scriptId, config = scriptConfig})
+    end
+
+    if _G.ScriptManager and type(_G.ScriptManager.RegisterScript) == "function" then
+        _G.ScriptManager.RegisterScript(scriptId, scriptConfig)
+    end
 end)
