@@ -21,9 +21,6 @@ local Assets = Instance.new("ScreenGui", plr.PlayerGui)
 Assets.Name = "Cubnit_Fly_v23_Final"
 Assets.ResetOnSpawn = false
 
--- =====================================================================
--- ADAPTAÇÃO AUTOMÁTICA DE ESCALA (+70% NO PC, PADRÃO NO MOBILE)
--- =====================================================================
 local uiScale = Instance.new("UIScale", Assets)
 local function updateUIScale()
     if not UIS.TouchEnabled then
@@ -34,10 +31,8 @@ local function updateUIScale()
 end
 updateUIScale()
 
--- Atualiza escala se o dispositivo mudar (ex: notebook híbrido)
 UIS.LastInputTypeChanged:Connect(updateUIScale)
 
--- [SPWN] Atributos de identificação persistente
 Assets:SetAttribute("SPWN_ManagedScriptID", "FlySpwanScript")
 Assets:SetAttribute("SPWN_ManagedScriptName", "FLY SPWAN")
 Assets:SetAttribute("SPWN_ManagedScriptCategory", "FLY SPWAN")
