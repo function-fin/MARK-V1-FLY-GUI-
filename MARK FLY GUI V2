@@ -9,6 +9,9 @@ local currentFlySpeed = 50
 local moveVector = Vector3.new(0,0,0)
 local activeTouch = nil 
 
+-- Variáveis para controle do teclado (PC)
+local keysPressed = {W = false, A = false, S = false, D = false}
+
 local ANIMS = {
     IDLE = {id = 89068086839142, speed = 1, priority = Enum.AnimationPriority.Action4}, 
     WALK = {id = 137168637932487, speed = 1.5, priority = Enum.AnimationPriority.Action4}, 
@@ -43,12 +46,19 @@ local function styleButton(btn, text, pos)
     btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamBold; btn.TextSize = 22
+    
+    -- Fonte Arcade Pixel e ajuste de tamanho
+    btn.Font = Enum.Font.Arcade
+    btn.TextSize = 20 
+    
     btn.ZIndex = 10; btn.BorderSizePixel = 0
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0.5, 0)
+    
     local stroke = Instance.new("UIStroke", btn)
     stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; stroke.Thickness = 2.5
-    stroke.Color = Color3.fromRGB(50, 50, 50)
+    
+    -- Borda Branca
+    stroke.Color = Color3.fromRGB(255, 255, 255) 
 end
 
 local BoostBtn = Instance.new("TextButton", ButtonFrame)
@@ -121,6 +131,22 @@ UIS.InputEnded:Connect(function(input)
     if input == activeTouch then activeTouch = nil; moveVector = Vector3.new(0, 0, 0) end
 end)
 
+-- SISTEMA DE TECLADO PARA PC
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.W or input.KeyCode == Enum.KeyCode.Up then keysPressed.W = true end
+    if input.KeyCode == Enum.KeyCode.S or input.KeyCode == Enum.KeyCode.Down then keysPressed.S = true end
+    if input.KeyCode == Enum.KeyCode.A or input.KeyCode == Enum.KeyCode.Left then keysPressed.A = true end
+    if input.KeyCode == Enum.KeyCode.D or input.KeyCode == Enum.KeyCode.Right then keysPressed.D = true end
+end)
+
+UIS.InputEnded:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.W or input.KeyCode == Enum.KeyCode.Up then keysPressed.W = false end
+    if input.KeyCode == Enum.KeyCode.S or input.KeyCode == Enum.KeyCode.Down then keysPressed.S = false end
+    if input.KeyCode == Enum.KeyCode.A or input.KeyCode == Enum.KeyCode.Left then keysPressed.A = false end
+    if input.KeyCode == Enum.KeyCode.D or input.KeyCode == Enum.KeyCode.Right then keysPressed.D = false end
+end)
+
 local currentTrack = nil
 local lastAnimId = nil
 
@@ -169,7 +195,20 @@ local function StartFly()
             elseif boostLevel == 3 then currentFlySpeed = 780
             end
             
-            local isMoving = moveVector.Magnitude > 0.1
+            -- Lógica de Movimento Unificada (PC + Mobile)
+            local finalMoveVector = Vector3.new(0,0,0)
+            
+            if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+                -- Controle Mobile (Analógico)
+                finalMoveVector = moveVector
+            else
+                -- Controle PC (WASD)
+                local x = (keysPressed.D and 1 or 0) - (keysPressed.A and 1 or 0)
+                local z = (keysPressed.S and 1 or 0) - (keysPressed.W and 1 or 0)
+                finalMoveVector = Vector3.new(x, 0, z)
+            end
+            
+            local isMoving = finalMoveVector.Magnitude > 0.1
             
             if isMoving and boostLevel == 3 then
                 TweenService:Create(camera, TweenInfo.new(0.5), {FieldOfView = 100}):Play()
@@ -178,8 +217,11 @@ local function StartFly()
             end
             
             if isMoving then
-                local finalDirection = (camCF.LookVector * -moveVector.Z + camCF.RightVector * moveVector.X).Unit
+                -- Normaliza o vetor para não ficar mais rápido na diagonal
+                local dir = finalMoveVector.Unit 
+                local finalDirection = (camCF.LookVector * -dir.Z + camCF.RightVector * dir.X).Unit
                 bv.velocity = finalDirection * currentFlySpeed
+                
                 if boostLevel == 0 then PlayUniversalAnim(ANIMS.IDLE)
                 elseif boostLevel == 1 then PlayUniversalAnim(ANIMS.WALK)
                 else PlayUniversalAnim(ANIMS.RUN) end
@@ -205,7 +247,10 @@ end
 MainBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
-        MainBtn.Text = "UNFLY"; BoostBtn.Visible = true; AnalogBase.Visible = true; StartFly()
+        MainBtn.Text = "UNFLY"; BoostBtn.Visible = true; 
+        -- Só mostra o analógico se for mobile
+        AnalogBase.Visible = UIS.TouchEnabled and not UIS.KeyboardEnabled
+        StartFly()
     else
         MainBtn.Text = "FLY"; BoostBtn.Visible = false; AnalogBase.Visible = false
         boostLevel = 0; BoostBtn.Text = "BOOST"
@@ -220,6 +265,8 @@ end)
 
 plr.CharacterAdded:Connect(function()
     flying = false; MainBtn.Text = "FLY"; AnalogBase.Visible = false
+    -- Reseta as teclas ao morrer
+    keysPressed = {W = false, A = false, S = false, D = false}
 end)
 
 task.spawn(function()
@@ -235,6 +282,7 @@ task.spawn(function()
             currentFlySpeed = 50
             moveVector = Vector3.new(0, 0, 0)
             activeTouch = nil
+            keysPressed = {W = false, A = false, S = false, D = false}
 
             local char = plr.Character
             if char then
