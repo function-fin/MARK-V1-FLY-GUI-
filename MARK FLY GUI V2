@@ -9,7 +9,6 @@ local currentFlySpeed = 50
 local moveVector = Vector3.new(0,0,0)
 local activeTouch = nil 
 
--- Variáveis para controle do teclado (PC)
 local keysPressed = {W = false, A = false, S = false, D = false}
 
 local ANIMS = {
@@ -22,10 +21,27 @@ local Assets = Instance.new("ScreenGui", plr.PlayerGui)
 Assets.Name = "Cubnit_Fly_v23_Final"
 Assets.ResetOnSpawn = false
 
+-- =====================================================================
+-- ADAPTAÇÃO AUTOMÁTICA DE ESCALA (+70% NO PC, PADRÃO NO MOBILE)
+-- =====================================================================
+local uiScale = Instance.new("UIScale", Assets)
+local function updateUIScale()
+    if not UIS.TouchEnabled then
+        uiScale.Scale = 1.7 -- Aumenta 70% no PC
+    else
+        uiScale.Scale = 1.0 -- Mantém tamanho padrão no mobile
+    end
+end
+updateUIScale()
+
+-- Atualiza escala se o dispositivo mudar (ex: notebook híbrido)
+UIS.LastInputTypeChanged:Connect(updateUIScale)
+
 -- [SPWN] Atributos de identificação persistente
 Assets:SetAttribute("SPWN_ManagedScriptID", "FlySpwanScript")
 Assets:SetAttribute("SPWN_ManagedScriptName", "FLY SPWAN")
 Assets:SetAttribute("SPWN_ManagedScriptCategory", "FLY SPWAN")
+
 local IconButton = Instance.new("ImageButton", Assets)
 IconButton.Name = "OpenToggleButton"
 IconButton.Size = UDim2.new(0, 60, 0, 60)
@@ -38,7 +54,7 @@ local ButtonFrame = Instance.new("Frame", Assets)
 ButtonFrame.Size = UDim2.new(0, 140, 0, 110)
 ButtonFrame.Position = UDim2.new(0.85, 0, 0.4, 0)
 ButtonFrame.BackgroundTransparency = 1
-ButtonFrame.Visible = false -- Inicia invisível conforme solicitado
+ButtonFrame.Visible = false
 
 local function styleButton(btn, text, pos)
     btn.Size = UDim2.new(0, 130, 0, 50)
@@ -47,7 +63,6 @@ local function styleButton(btn, text, pos)
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     
-    -- Fonte Arcade Pixel e ajuste de tamanho
     btn.Font = Enum.Font.Arcade
     btn.TextSize = 20 
     
@@ -56,8 +71,6 @@ local function styleButton(btn, text, pos)
     
     local stroke = Instance.new("UIStroke", btn)
     stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; stroke.Thickness = 2.5
-    
-    -- Borda Branca
     stroke.Color = Color3.fromRGB(255, 255, 255) 
 end
 
@@ -131,7 +144,6 @@ UIS.InputEnded:Connect(function(input)
     if input == activeTouch then activeTouch = nil; moveVector = Vector3.new(0, 0, 0) end
 end)
 
--- SISTEMA DE TECLADO PARA PC
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.W or input.KeyCode == Enum.KeyCode.Up then keysPressed.W = true end
@@ -195,14 +207,11 @@ local function StartFly()
             elseif boostLevel == 3 then currentFlySpeed = 780
             end
             
-            -- Lógica de Movimento Unificada (PC + Mobile)
             local finalMoveVector = Vector3.new(0,0,0)
             
             if UIS.TouchEnabled and not UIS.KeyboardEnabled then
-                -- Controle Mobile (Analógico)
                 finalMoveVector = moveVector
             else
-                -- Controle PC (WASD)
                 local x = (keysPressed.D and 1 or 0) - (keysPressed.A and 1 or 0)
                 local z = (keysPressed.S and 1 or 0) - (keysPressed.W and 1 or 0)
                 finalMoveVector = Vector3.new(x, 0, z)
@@ -217,7 +226,6 @@ local function StartFly()
             end
             
             if isMoving then
-                -- Normaliza o vetor para não ficar mais rápido na diagonal
                 local dir = finalMoveVector.Unit 
                 local finalDirection = (camCF.LookVector * -dir.Z + camCF.RightVector * dir.X).Unit
                 bv.velocity = finalDirection * currentFlySpeed
@@ -248,7 +256,6 @@ MainBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
         MainBtn.Text = "UNFLY"; BoostBtn.Visible = true; 
-        -- Só mostra o analógico se for mobile
         AnalogBase.Visible = UIS.TouchEnabled and not UIS.KeyboardEnabled
         StartFly()
     else
@@ -265,7 +272,6 @@ end)
 
 plr.CharacterAdded:Connect(function()
     flying = false; MainBtn.Text = "FLY"; AnalogBase.Visible = false
-    -- Reseta as teclas ao morrer
     keysPressed = {W = false, A = false, S = false, D = false}
 end)
 
@@ -288,7 +294,6 @@ task.spawn(function()
             if char then
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if hrp then
-                    -- Remove BodyGyro e BodyVelocity órfãos
                     for _, obj in ipairs(hrp:GetChildren()) do
                         if obj:IsA("BodyGyro") or obj:IsA("BodyVelocity") then
                             pcall(function() obj:Destroy() end)
@@ -306,7 +311,6 @@ task.spawn(function()
                 end
             end
 
-            -- Restaura FOV da câmera
             local camera = workspace.CurrentCamera
             if camera then
                 pcall(function()
@@ -327,7 +331,6 @@ task.spawn(function()
     _G.ScriptManagerQueue = _G.ScriptManagerQueue or {}
     _G.RegisteredScriptDatabase = _G.RegisteredScriptDatabase or {}
 
-    -- [SPWN] Lê visibilidade persistida em vez de hardcoded true
     local persistedVis = Assets:GetAttribute("SPWN_ManagedVisibility")
 
     _G.RegisteredScriptDatabase[scriptId] = {
